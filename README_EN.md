@@ -36,7 +36,7 @@ Numbered callouts match the legend on the right:
 ## Run from source
 
 ```bash
-git clone https://github.com/caoweishang/desk_reminder.git
+git clone https://github.com/PureLoveWarriors/desk_reminder.git
 cd desk_reminder
 
 pip install -r requirements.txt
