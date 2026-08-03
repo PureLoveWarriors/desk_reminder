@@ -1,0 +1,158 @@
+/* 整体字体 */
+* {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    color: #2b2b2b;
+}
+
+/* 标题栏 */
+#TitleBar {
+    background: transparent;
+}
+#TitleLabel {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f1f1f;
+    background: transparent;
+}
+
+/* 输入框 */
+#AddInput {
+    border: none;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+#AddInput:focus {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+/* 设置面板里的小按钮 */
+QToolButton {
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    padding: 4px;
+    font-size: 14px;
+    color: #6b6b6b;
+}
+QToolButton:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+QToolButton:checked {
+    color: @ACCENT@;
+    background: @ACCENT_SOFT_BG@;
+}
+
+/* 任务列表 */
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+#TaskList {
+    background: transparent;
+}
+
+/* 单条任务 */
+#TaskItem {
+    background: transparent;
+    border-radius: 12px;
+}
+#TaskItem:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+#TaskItemDragging {
+    background: rgba(255, 255, 255, 0.88);
+    border: 2px solid @ACCENT@;
+    border-radius: 14px;
+    margin: 1px 2px;
+}
+#TaskTitle {
+    font-size: 14px;
+    color: #2b2b2b;
+    background: transparent;
+    border: none;
+}
+#TaskTitleDone {
+    font-size: 14px;
+    color: #b0b0b0;
+    background: transparent;
+    border: none;
+}
+#TimerLabel {
+    font-size: 12px;
+    color: @ACCENT@;
+    font-weight: 600;
+}
+
+/* 滚动条 */
+QScrollBar:vertical {
+    background: transparent;
+    width: 6px;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    min-height: 24px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+
+/* 设置 / 倒计时弹窗 */
+#SettingsPanel {
+    background: transparent;
+}
+#SettingsPanel QLabel,
+#PopupLabel {
+    font-size: 13px;
+    color: #2b2b2b;
+    background: transparent;
+}
+#PopupButton {
+    border: none;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    padding: 4px 10px;
+    color: #2b2b2b;
+    font-size: 13px;
+}
+#PopupButton:hover {
+    background: @ACCENT_HOVER_BG@;
+    color: @ACCENT@;
+}
+#PopupButton:checked {
+    background: @ACCENT_SOFT_BG@;
+    color: @ACCENT@;
+}
+#ThemeSwatch {
+    border: 2px solid transparent;
+    border-radius: 15px;
+}
+#ThemeSwatch:checked {
+    border: 2px solid @ACCENT@;
+}
+#PopupSpin {
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    padding: 2px 6px;
+    background: white;
+    color: #2b2b2b;
+}
+
+QSlider::groove:horizontal {
+    height: 4px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    width: 16px;
+    height: 16px;
+    margin: -6px 0;
+    background: @ACCENT@;
+    border-radius: 8px;
+}
+QSlider::sub-page:horizontal {
+    background: @ACCENT@;
+    border-radius: 2px;
+}
