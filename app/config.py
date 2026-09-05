@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -13,10 +14,17 @@ def resource_path(rel: str) -> Path:
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent.parent))
     return base / rel
 
-# 数据统一放在用户目录，打包成 exe 后也能正常写入
-DATA_DIR = Path.home() / f".{APP_NAME.lower()}"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+def _resolve_data_dir() -> Path:
+    """默认 ~/.deskreminder；截图/测试可设环境变量 DESK_REMINDER_HOME 指向临时目录。"""
+    override = os.environ.get("DESK_REMINDER_HOME", "").strip()
+    path = Path(override).expanduser() if override else Path.home() / f".{APP_NAME.lower()}"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+# 数据统一放在用户目录，打包成 exe 后也能正常写入
+DATA_DIR = _resolve_data_dir()
 CONFIG_PATH = DATA_DIR / "config.json"
 DB_PATH = DATA_DIR / "reminder.db"
 
