@@ -1,7 +1,8 @@
 """桌面提醒事项 - 入口。"""
 import sys
 
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtWidgets import QApplication
 
 from app import config
@@ -28,6 +29,10 @@ def _install_crash_logger():
 
 def main():
     _install_crash_logger()
+    # 新电脑常见 125%/150% 缩放，按实际比例算，避免点击区域和画面错位
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # 关到托盘也不退出
 

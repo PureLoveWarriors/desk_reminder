@@ -53,6 +53,7 @@ DEFAULTS = {
     "accent": "#ff6b6b",                # 圆圈/强调色（跟随主题预设）
     "theme": DEFAULT_THEME_ID,           # 配色预设 id
     "exit_behavior": "ask",              # ask / minimize / quit：点退出按钮的行为
+    "samples_seeded": False,             # 是否已写入过首次样例任务
 }
 
 

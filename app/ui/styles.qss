@@ -99,8 +99,9 @@ QScrollBar::handle:vertical {
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
 
-/* 设置 / 倒计时弹窗 */
-#SettingsPanel {
+/* 设置 / 倒计时 / 退出确认弹窗 */
+#SettingsPanel,
+#ExitConfirmPanel {
     background: transparent;
 }
 #SettingsPanel QLabel,
@@ -138,6 +139,66 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none;
     padding: 2px 6px;
     background: white;
     color: #2b2b2b;
+}
+
+#ExitTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f1f1f;
+    background: transparent;
+}
+#ExitHint {
+    font-size: 12px;
+    color: #8d8d8d;
+    background: transparent;
+}
+#ExitPrimaryBtn {
+    border: none;
+    background: @ACCENT_SOFT_BG@;
+    color: @ACCENT@;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+#ExitPrimaryBtn:hover {
+    background: @ACCENT_HOVER_BG@;
+}
+#ExitDangerBtn {
+    border: none;
+    background: rgba(0, 0, 0, 0.05);
+    color: #5c5c5c;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+#ExitDangerBtn:hover {
+    background: rgba(255, 95, 87, 0.12);
+    color: #e14b45;
+}
+#ExitDivider {
+    background: rgba(0, 0, 0, 0.08);
+    border: none;
+}
+#ExitRemember {
+    font-size: 12px;
+    color: #8d8d8d;
+    background: transparent;
+    spacing: 8px;
+}
+#ExitRemember::indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.16);
+    background: #ffffff;
+}
+#ExitRemember::indicator:hover {
+    border: 1px solid @ACCENT@;
+}
+#ExitRemember::indicator:checked {
+    background: @ACCENT@;
+    border: 1px solid @ACCENT@;
 }
 
 QSlider::groove:horizontal {

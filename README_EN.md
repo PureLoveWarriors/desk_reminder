@@ -46,6 +46,7 @@ python main.py
 ## Build an `.exe`
 
 ```bash
+pip install -r requirements.txt
 pip install pyinstaller
 python build.py
 ```
@@ -54,7 +55,7 @@ Output: `dist/DeskReminder.exe` (single file, roughly 40–50MB), with app icon 
 
 Share that one file — the other person does **not** need Python.
 
-> Close any running `DeskReminder.exe` before rebuilding, or the pack step may fail with a file lock.  
+> The build script overwrites `dist/DeskReminder.exe`; if that file is locked, it exits the running app and retries. If it still fails, quit the app and run the build again.  
 > First launch may hit Windows SmartScreen — choose **More info → Run anyway**.
 
 ## How to use

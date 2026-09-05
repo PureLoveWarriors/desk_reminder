@@ -7,6 +7,13 @@ from dataclasses import dataclass
 
 from app.config import DB_PATH
 
+# 首次使用的演示任务，只在空库时插入一次
+SAMPLE_TITLES = (
+    "点左侧圆圈，完成这条任务",
+    "点时钟图标，设置倒计时提醒",
+    "按住标题拖动，可以调整顺序",
+)
+
 
 @dataclass
 class Task:
@@ -65,6 +72,22 @@ class Database:
             sort_order=row["sort_order"],
             highlighted=bool(row["highlighted"]),
         )
+
+    def seed_sample_tasks(self) -> list[Task]:
+        """空库时插入三条样例，已有任务则不动。"""
+        row = self.conn.execute("SELECT COUNT(*) AS n FROM tasks").fetchone()
+        if row["n"]:
+            return []
+        created = []
+        n = len(SAMPLE_TITLES)
+        for i, title in enumerate(SAMPLE_TITLES):
+            task = self.add_task(title)
+            # 待办列表按 sort_order DESC 显示，第一条样例要在最上面
+            order = n - i
+            self.set_sort_order(task.id, order)
+            task.sort_order = order
+            created.append(task)
+        return created
 
     def list_tasks(self, done: bool | None = None) -> list[Task]:
         if done is None:

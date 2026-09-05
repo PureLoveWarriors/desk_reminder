@@ -50,6 +50,7 @@ python main.py
 ## 打包成 exe
 
 ```bash
+pip install -r requirements.txt
 pip install pyinstaller
 python build.py
 ```
@@ -58,7 +59,7 @@ python build.py
 
 把这个 exe 发给别人即可直接双击使用，**不需要**对方电脑有 Python。
 
-> 注意：打包前请先关掉正在运行的 `DeskReminder.exe`，否则可能因文件占用导致打包失败。  
+> 打包脚本会先尝试覆盖旧的 `dist/DeskReminder.exe`；若文件被占用，会结束正在运行的实例再继续。仍失败时请先退出程序后重试。  
 > 首次运行可能被 Windows SmartScreen 拦截，选「更多信息 → 仍要运行」即可。
 
 ## 使用说明

@@ -209,30 +209,50 @@ class ExitConfirmPanel(_PanelFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(240)
+        self.setObjectName("ExitConfirmPanel")
+        self.setFixedWidth(268)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(18, 16, 18, 16)
-        lay.setSpacing(12)
+        lay.setContentsMargins(20, 20, 20, 16)
+        lay.setSpacing(0)
 
         title = QLabel("要退出程序吗？")
-        title.setObjectName("PopupLabel")
+        title.setObjectName("ExitTitle")
         lay.addWidget(title)
 
-        row = QHBoxLayout()
-        row.setSpacing(8)
-        minimize_btn = QPushButton("最小化到托盘")
-        minimize_btn.setObjectName("PopupButton")
-        minimize_btn.clicked.connect(lambda: self._pick("minimize"))
-        quit_btn = QPushButton("直接退出")
-        quit_btn.setObjectName("PopupButton")
-        quit_btn.clicked.connect(lambda: self._pick("quit"))
-        row.addWidget(minimize_btn)
-        row.addWidget(quit_btn)
-        lay.addLayout(row)
+        hint = QLabel("可以先收到托盘，也可以完全退出")
+        hint.setObjectName("ExitHint")
+        hint.setWordWrap(True)
+        lay.addSpacing(6)
+        lay.addWidget(hint)
 
+        lay.addSpacing(16)
+        minimize_btn = QPushButton("最小化到托盘")
+        minimize_btn.setObjectName("ExitPrimaryBtn")
+        minimize_btn.setCursor(Qt.PointingHandCursor)
+        minimize_btn.setFixedHeight(36)
+        minimize_btn.clicked.connect(lambda: self._pick("minimize"))
+        lay.addWidget(minimize_btn)
+
+        lay.addSpacing(8)
+        quit_btn = QPushButton("直接退出")
+        quit_btn.setObjectName("ExitDangerBtn")
+        quit_btn.setCursor(Qt.PointingHandCursor)
+        quit_btn.setFixedHeight(36)
+        quit_btn.clicked.connect(lambda: self._pick("quit"))
+        lay.addWidget(quit_btn)
+
+        lay.addSpacing(14)
+        divider = QFrame()
+        divider.setObjectName("ExitDivider")
+        divider.setFixedHeight(1)
+        divider.setFrameShape(QFrame.NoFrame)
+        lay.addWidget(divider)
+
+        lay.addSpacing(12)
         self.remember_chk = QCheckBox("记住我的选择，不再询问")
-        self.remember_chk.setObjectName("PopupLabel")
+        self.remember_chk.setObjectName("ExitRemember")
+        self.remember_chk.setCursor(Qt.PointingHandCursor)
         lay.addWidget(self.remember_chk)
 
         self.adjustSize()
@@ -244,7 +264,7 @@ class ExitConfirmPanel(_PanelFrame):
 
     def show_centered(self, host: QWidget):
         x = (host.width() - self.width()) // 2
-        y = (host.height() - self.height()) // 2
+        y = (host.height() - self.height()) // 2 - 12
         self.move(max(8, x), max(8, y))
         self.raise_()
         self.show()

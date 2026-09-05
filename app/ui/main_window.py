@@ -1,14 +1,14 @@
 """主窗口：无边框、置顶、可拖动/拖边框缩放、半透明圆角背景。"""
 from __future__ import annotations
 
-import ctypes
-import ctypes.wintypes
 import time
 
 from PySide6.QtCore import (
     Qt,
+    QEvent,
     QTimer,
     QPoint,
+    QRect,
     QRectF,
     QPropertyAnimation,
     QEasingCurve,
@@ -21,6 +21,7 @@ from PySide6.QtGui import (
     QPixmap,
     QAction,
     QPainterPath,
+    QCursor,
 )
 from PySide6.QtWidgets import (
     QWidget,
@@ -33,6 +34,9 @@ from PySide6.QtWidgets import (
     QMenu,
     QApplication,
     QGraphicsOpacityEffect,
+    QAbstractButton,
+    QAbstractSlider,
+    QSpinBox,
 )
 
 from app import config
@@ -42,20 +46,78 @@ from app.ui.settings import SettingsPanel, TimerPopup, ExitConfirmPanel
 from app.ui.icons import IconButton
 from app.ui.theme import render_stylesheet
 
-RESIZE_MARGIN = 8      # 窗口透明边框宽度（视觉/布局用）
-EDGE_HIT = 14           # 边缘拖拽缩放的识别热区（比视觉边框更宽，方便点击）
-CORNER_HIT = 20         # 四角的识别热区，角比边更难精确点到，给更大的正方形范围
+RESIZE_MARGIN = 14     # 窗口透明边框宽度（也是主热区，点在这里一定能拉）
+EDGE_HIT = 22           # 边的缩放热区，略伸进内容，更好抓
+CORNER_HIT = 36         # 四角热区更大，角本来就难点
 MIN_W, MIN_H = 240, 260
 
 STYLE_PATH = config.resource_path("app/ui/styles.qss")
 STYLE_TEMPLATE = STYLE_PATH.read_text(encoding="utf-8") if STYLE_PATH.exists() else ""
 
-# Windows 原生命中测试返回值（让系统处理缩放，光标自动变化）
-WM_NCHITTEST = 0x0084
-HT = {
-    "t": 12, "b": 15, "l": 10, "r": 11,
-    "tl": 13, "tr": 14, "bl": 16, "br": 17,
+_EDGE_CURSORS = {
+    "l": Qt.SizeHorCursor,
+    "r": Qt.SizeHorCursor,
+    "t": Qt.SizeVerCursor,
+    "b": Qt.SizeVerCursor,
+    "tl": Qt.SizeFDiagCursor,
+    "br": Qt.SizeFDiagCursor,
+    "tr": Qt.SizeBDiagCursor,
+    "bl": Qt.SizeBDiagCursor,
 }
+
+
+def apply_edge_resize(
+    geo: QRect, delta: QPoint, edge: str, min_w: int, min_h: int
+) -> QRect:
+    """按拖拽边/角计算新窗口矩形，并限制最小宽高。"""
+    r = QRect(geo)
+    if "l" in edge:
+        r.setLeft(r.left() + delta.x())
+    if "r" in edge:
+        r.setRight(r.right() + delta.x())
+    if "t" in edge:
+        r.setTop(r.top() + delta.y())
+    if "b" in edge:
+        r.setBottom(r.bottom() + delta.y())
+    if r.width() < min_w:
+        if "l" in edge:
+            r.setLeft(r.right() - min_w)
+        else:
+            r.setWidth(min_w)
+    if r.height() < min_h:
+        if "t" in edge:
+            r.setTop(r.bottom() - min_h)
+        else:
+            r.setHeight(min_h)
+    return r
+
+
+def hit_edge(
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    edge_hit: int = EDGE_HIT,
+    corner_hit: int = CORNER_HIT,
+) -> str | None:
+    """判断点是否落在缩放热区。四角优先于边。"""
+    if x <= corner_hit and y <= corner_hit:
+        return "tl"
+    if x >= w - corner_hit and y <= corner_hit:
+        return "tr"
+    if x <= corner_hit and y >= h - corner_hit:
+        return "bl"
+    if x >= w - corner_hit and y >= h - corner_hit:
+        return "br"
+    if x <= edge_hit:
+        return "l"
+    if x >= w - edge_hit:
+        return "r"
+    if y <= edge_hit:
+        return "t"
+    if y >= h - edge_hit:
+        return "b"
+    return None
 
 
 class MainWindow(QWidget):
@@ -65,11 +127,15 @@ class MainWindow(QWidget):
         self.cfg.setdefault("theme", config.DEFAULT_THEME_ID)
         self.cfg["accent"] = config.get_theme(self.cfg["theme"])["accent"]
         self.db = Database()
+        self._seed_first_run_samples()
 
         self.item_widgets: dict[int, TaskItemWidget] = {}
         self.showing_completed = False
         self._anims: list = []          # 保持动画引用，避免被回收
         self._drag_pos: QPoint | None = None
+        self._resize_edge: str | None = None
+        self._resize_origin: QRect | None = None
+        self._resize_anchor: QPoint | None = None
         self._reorder_task_id: int | None = None   # 当前正在被拖拽排序的任务
         self._exit_panel: ExitConfirmPanel | None = None
 
@@ -83,6 +149,7 @@ class MainWindow(QWidget):
         self.setMinimumSize(MIN_W, MIN_H)
 
         self._build_ui()
+        self._install_resize_filters(self)
         self._setup_tray()
         self._reload_list()
 
@@ -97,6 +164,20 @@ class MainWindow(QWidget):
         if self.cfg["always_on_top"]:
             flags |= Qt.WindowStaysOnTopHint
         self.setWindowFlags(flags)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # 置顶切换会重建 HWND，清掉可能残留的拖拽/缩放状态
+        self._resize_edge = None
+        self._drag_pos = None
+
+    def _seed_first_run_samples(self):
+        """新电脑 / 首次打包运行：空库写入三条样例，只做一次。"""
+        if self.cfg.get("samples_seeded"):
+            return
+        self.db.seed_sample_tasks()
+        self.cfg["samples_seeded"] = True
+        config.save(self.cfg)
 
     # ---------- UI ----------
     def _build_ui(self):
@@ -232,6 +313,7 @@ class MainWindow(QWidget):
         # 插到 stretch 之前
         self.list_layout.insertWidget(self.list_layout.count() - 1, w)
         self.item_widgets[task.id] = w
+        self._install_resize_filters(w)
         # 恢复未走完的倒计时显示
         if task.remind_at > time.time():
             w.set_remaining(int(task.remind_at - time.time()))
@@ -436,8 +518,17 @@ class MainWindow(QWidget):
         if self._exit_panel and self._exit_panel.isVisible():
             if not self._exit_panel.geometry().contains(pos):
                 self._exit_panel.hide()
-        if event.button() == Qt.LeftButton and \
-                self.title_bar.geometry().contains(pos):
+        if event.button() != Qt.LeftButton:
+            return
+
+        # 缩放必须走 Qt 坐标，不能再交给 WM_NCHITTEST：
+        # 新电脑常见 125%/150% 缩放时，原生命中会把整窗当成边框，按钮全点不了
+        edge = self._edge_at(pos)
+        if edge:
+            self._begin_resize(edge, event.globalPosition().toPoint())
+            return
+
+        if self.title_bar.geometry().contains(pos):
             # 点在按钮上时不拖动窗口
             child = self.childAt(pos)
             if child is None or child is self.title_bar or child is self.title_label:
@@ -544,42 +635,88 @@ class MainWindow(QWidget):
         p.setPen(QColor(0, 0, 0, 22))
         p.drawLine(rect.left(), bar_rect.bottom(), rect.right(), bar_rect.bottom())
 
-    # ---------- 缩放（交给 Windows 原生处理，带正确光标）----------
-    def nativeEvent(self, event_type, message):
-        if event_type == "windows_generic_MSG":
-            msg = ctypes.wintypes.MSG.from_address(int(message))
-            if msg.message == WM_NCHITTEST:
-                gx = ctypes.c_short(msg.lParam & 0xFFFF).value
-                gy = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
-                pos = self.mapFromGlobal(QPoint(gx, gy))
+    # ---------- 缩放（Qt 自己处理，避免高 DPI 下 WM_NCHITTEST 吞掉点击）----------
+    def _edge_at(self, pos: QPoint):
+        return hit_edge(pos.x(), pos.y(), self.width(), self.height())
+
+    def _begin_resize(self, edge: str, global_pos: QPoint):
+        self._resize_edge = edge
+        self._resize_origin = QRect(self.geometry())
+        self._resize_anchor = QPoint(global_pos)
+        self.grabMouse()
+
+    def _install_resize_filters(self, widget: QWidget):
+        widget.installEventFilter(self)
+        widget.setMouseTracking(True)
+        for child in widget.findChildren(QWidget):
+            child.installEventFilter(self)
+            child.setMouseTracking(True)
+
+    def _widget_allows_resize_grab(self, obj) -> bool:
+        """按钮、输入框、设置面板上的点击不抢，避免热区加大后点不到控件。"""
+        w = obj if isinstance(obj, QWidget) else None
+        while w is not None and w is not self:
+            if isinstance(w, (QAbstractButton, QLineEdit, QSpinBox, QAbstractSlider)):
+                return False
+            if isinstance(w, (SettingsPanel, TimerPopup, ExitConfirmPanel)):
+                return False
+            w = w.parentWidget()
+        return True
+
+    def eventFilter(self, obj, event):
+        et = event.type()
+        if et == QEvent.Type.MouseButtonPress and event.button() == Qt.LeftButton:
+            if self._widget_allows_resize_grab(obj):
+                pos = self.mapFromGlobal(event.globalPosition().toPoint())
                 edge = self._edge_at(pos)
                 if edge:
-                    return True, HT[edge]
-        return super().nativeEvent(event_type, message)
+                    self._begin_resize(edge, event.globalPosition().toPoint())
+                    return True
+        elif et == QEvent.Type.MouseMove and not self._resize_edge and not self._drag_pos:
+            if isinstance(obj, QWidget) and (obj is self or self.isAncestorOf(obj)):
+                pos = self.mapFromGlobal(event.globalPosition().toPoint())
+                if self.rect().contains(pos):
+                    edge = self._edge_at(pos)
+                    cursor = _EDGE_CURSORS.get(edge, Qt.ArrowCursor)
+                    self.setCursor(cursor)
+                    if obj is not self and self._widget_allows_resize_grab(obj):
+                        if edge:
+                            obj.setCursor(cursor)
+                        else:
+                            obj.unsetCursor()
+        return super().eventFilter(obj, event)
 
-    def _edge_at(self, pos: QPoint):
-        x, y, w, h = pos.x(), pos.y(), self.width(), self.height()
-        c = CORNER_HIT
-        # 四角用更大的正方形热区单独判断，优先级最高（角本来就比边难精确点到）
-        if x <= c and y <= c: return "tl"
-        if x >= w - c and y <= c: return "tr"
-        if x <= c and y >= h - c: return "bl"
-        if x >= w - c and y >= h - c: return "br"
-        m = EDGE_HIT
-        left, right = x <= m, x >= w - m
-        top, bottom = y <= m, y >= h - m
-        if left: return "l"
-        if right: return "r"
-        if top: return "t"
-        if bottom: return "b"
-        return None
+    def _update_edge_cursor(self, pos: QPoint):
+        edge = self._edge_at(pos)
+        self.setCursor(_EDGE_CURSORS.get(edge, Qt.ArrowCursor))
 
     def mouseMoveEvent(self, event):
+        if self._resize_edge and self._resize_origin and self._resize_anchor:
+            delta = event.globalPosition().toPoint() - self._resize_anchor
+            self.setGeometry(
+                apply_edge_resize(
+                    self._resize_origin, delta, self._resize_edge, MIN_W, MIN_H
+                )
+            )
+            return
         if self._drag_pos and event.buttons() & Qt.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag_pos)
+            return
+        self._update_edge_cursor(event.position().toPoint())
 
     def mouseReleaseEvent(self, _event):
+        if self._resize_edge:
+            self.releaseMouse()
+        self._resize_edge = None
+        self._resize_origin = None
+        self._resize_anchor = None
         self._drag_pos = None
+        self._update_edge_cursor(self.mapFromGlobal(QCursor.pos()))
+
+    def leaveEvent(self, event):
+        if not self._resize_edge:
+            self.unsetCursor()
+        super().leaveEvent(event)
 
     # ---------- 退出保存 ----------
     def closeEvent(self, event):
