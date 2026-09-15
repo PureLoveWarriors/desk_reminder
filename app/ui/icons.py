@@ -76,7 +76,7 @@ class IconButton(QAbstractButton):
         elif self._kind == "pin":
             color = accent if self.isChecked() else QColor("#555555")
         elif self._kind == "pin_top":
-            color = accent if self._hover else QColor(0, 0, 0, 68)
+            color = accent if (self.isChecked() or self._hover) else QColor(0, 0, 0, 68)
         elif self._kind == "history":
             color = accent if self.isChecked() else QColor("#4a90e2")
         elif self._kind == "highlight":

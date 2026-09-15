@@ -78,7 +78,7 @@ class TaskItemWidget(QFrame):
     deleteRequested = Signal(int)
     timerRequested = Signal(int)
     highlightToggled = Signal(int, bool)
-    pinToTopRequested = Signal(int)
+    pinnedToggled = Signal(int, bool)
     dragStarted = Signal(int)
     dragMoved = Signal(int, QPoint)
     dragEnded = Signal(int)
@@ -106,8 +106,15 @@ class TaskItemWidget(QFrame):
         lay.setContentsMargins(4, 4, 8, 4)
         lay.setSpacing(6)
 
-        self.pin_top_btn = IconButton("pin_top", "置顶到列表最上方", size=26, accent=accent)
-        self.pin_top_btn.clicked.connect(lambda: self.pinToTopRequested.emit(task.id))
+        self.pin_top_btn = IconButton(
+            "pin_top",
+            "取消置顶" if getattr(task, "pinned", False) else "置顶",
+            size=26,
+            checkable=True,
+            accent=accent,
+        )
+        self.pin_top_btn.setChecked(getattr(task, "pinned", False))
+        self.pin_top_btn.toggled.connect(self._on_pin_toggle)
         lay.addWidget(self.pin_top_btn)
         lay.addSpacing(2)
 
@@ -320,6 +327,11 @@ class TaskItemWidget(QFrame):
         self.task.highlighted = checked
         self.highlightToggled.emit(self.task.id, checked)
         self.update()
+
+    def _on_pin_toggle(self, checked: bool):
+        self.task.pinned = checked
+        self.pin_top_btn.setToolTip("取消置顶" if checked else "置顶")
+        self.pinnedToggled.emit(self.task.id, checked)
 
     def paintEvent(self, event):
         super().paintEvent(event)

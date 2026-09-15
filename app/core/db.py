@@ -25,6 +25,7 @@ class Task:
     created_at: float
     sort_order: int
     highlighted: bool = False   # 是否高亮标记（正在进行）
+    pinned: bool = False        # 是否置顶
 
 
 class Database:
@@ -45,7 +46,8 @@ class Database:
                 remind_at   REAL NOT NULL DEFAULT 0,
                 created_at  REAL NOT NULL,
                 sort_order  INTEGER NOT NULL DEFAULT 0,
-                highlighted INTEGER NOT NULL DEFAULT 0
+                highlighted INTEGER NOT NULL DEFAULT 0,
+                pinned      INTEGER NOT NULL DEFAULT 0
             )
             """
         )
@@ -60,6 +62,11 @@ class Database:
                 "ALTER TABLE tasks ADD COLUMN highlighted INTEGER NOT NULL DEFAULT 0"
             )
             self.conn.commit()
+        if "pinned" not in cols:
+            self.conn.execute(
+                "ALTER TABLE tasks ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0"
+            )
+            self.conn.commit()
 
     def _row_to_task(self, row: sqlite3.Row) -> Task:
         return Task(
@@ -71,6 +78,7 @@ class Database:
             created_at=row["created_at"],
             sort_order=row["sort_order"],
             highlighted=bool(row["highlighted"]),
+            pinned=bool(row["pinned"]),
         )
 
     def seed_sample_tasks(self) -> list[Task]:
@@ -92,11 +100,12 @@ class Database:
     def list_tasks(self, done: bool | None = None) -> list[Task]:
         if done is None:
             rows = self.conn.execute(
-                "SELECT * FROM tasks ORDER BY sort_order ASC, id ASC"
+                "SELECT * FROM tasks ORDER BY pinned DESC, sort_order ASC, id ASC"
             ).fetchall()
         else:
             rows = self.conn.execute(
-                "SELECT * FROM tasks WHERE done = ? ORDER BY sort_order DESC, id DESC",
+                "SELECT * FROM tasks WHERE done = ? "
+                "ORDER BY pinned DESC, sort_order DESC, id DESC",
                 (1 if done else 0,),
             ).fetchall()
         return [self._row_to_task(r) for r in rows]
@@ -105,7 +114,7 @@ class Database:
         now = time.time()
         cur = self.conn.execute(
             "INSERT INTO tasks (title, created_at, sort_order) VALUES (?, ?, ?)",
-            (title, now, int(now)),
+            (title, now, int(now * 1000)),
         )
         self.conn.commit()
         row = self.conn.execute(
@@ -137,6 +146,20 @@ class Database:
             "UPDATE tasks SET highlighted = ? WHERE id = ?",
             (1 if highlighted else 0, task_id),
         )
+        self.conn.commit()
+
+    def set_pinned(self, task_id: int, pinned: bool):
+        if pinned:
+            # 置顶时把 sort_order 刷新到最新，确保排在所有置顶项的最上面
+            now_order = int(time.time() * 1000)
+            self.conn.execute(
+                "UPDATE tasks SET pinned = 1, sort_order = ? WHERE id = ?",
+                (now_order, task_id),
+            )
+        else:
+            self.conn.execute(
+                "UPDATE tasks SET pinned = 0 WHERE id = ?", (task_id,)
+            )
         self.conn.commit()
 
     def set_sort_order(self, task_id: int, order: int):

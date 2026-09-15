@@ -298,32 +298,48 @@ class MainWindow(QWidget):
         self.add_input.setVisible(not on)
         self._reload_list()
 
-    def _add_item_widget(self, task):
+    def _add_item_widget(self, task, index: int | None = None):
         w = TaskItemWidget(task, self.cfg["accent"])
         w.toggled.connect(self._on_task_toggled)
         w.titleChanged.connect(self.db.set_title)
         w.deleteRequested.connect(self._on_task_delete)
         w.timerRequested.connect(self._on_timer_request)
         w.highlightToggled.connect(self._on_highlight_toggled)
-        w.pinToTopRequested.connect(self._on_pin_to_top)
+        w.pinnedToggled.connect(self._on_pinned_toggled)
         w.dragStarted.connect(self._on_reorder_started)
         w.dragMoved.connect(self._on_reorder_moved)
         w.dragEnded.connect(self._on_reorder_ended)
         w.set_drag_enabled(not self.showing_completed)
-        # 插到 stretch 之前
-        self.list_layout.insertWidget(self.list_layout.count() - 1, w)
+        # index 为空时插到 stretch 之前（列表最末尾）
+        insert_at = self.list_layout.count() - 1 if index is None else index
+        self.list_layout.insertWidget(insert_at, w)
         self.item_widgets[task.id] = w
         self._install_resize_filters(w)
         # 恢复未走完的倒计时显示
         if task.remind_at > time.time():
             w.set_remaining(int(task.remind_at - time.time()))
 
+    def _pinned_prefix_count(self) -> int:
+        """列表顶部连续置顶项的数量，新任务应插在这些项之后。"""
+        count = 0
+        n = self.list_layout.count() - 1  # 去掉末尾的 stretch
+        for i in range(n):
+            item_w = self.list_layout.itemAt(i).widget()
+            if item_w is None:
+                continue
+            if getattr(item_w.task, "pinned", False):
+                count += 1
+            else:
+                break
+        return count
+
     def _add_task(self):
         text = self.add_input.text().strip()
         if not text:
             return
         task = self.db.add_task(text)
-        self._add_item_widget(task)
+        # 新任务放在置顶项下面；没有置顶项则放最上面
+        self._add_item_widget(task, index=self._pinned_prefix_count())
         self.add_input.clear()
 
     def _on_task_toggled(self, task_id: int, done: bool):
@@ -370,15 +386,25 @@ class MainWindow(QWidget):
     def _on_highlight_toggled(self, task_id: int, highlighted: bool):
         self.db.set_highlighted(task_id, highlighted)
 
-    def _on_pin_to_top(self, task_id: int):
+    def _on_pinned_toggled(self, task_id: int, pinned: bool):
         if self.showing_completed:
             return
+        self.db.set_pinned(task_id, pinned)
         w = self.item_widgets.get(task_id)
-        if not w:
-            return
-        self.list_layout.removeWidget(w)
-        self.list_layout.insertWidget(0, w)
-        self._persist_order()
+        if w:
+            w.task.pinned = pinned
+        self._resort_layout()
+
+    def _resort_layout(self):
+        """按数据库当前顺序（置顶优先）重排已有控件，不重建控件本身。"""
+        tasks = self.db.list_tasks(done=self.showing_completed)
+        for idx, t in enumerate(tasks):
+            w = self.item_widgets.get(t.id)
+            if w is None:
+                continue
+            w.task.sort_order = t.sort_order
+            self.list_layout.removeWidget(w)
+            self.list_layout.insertWidget(idx, w)
 
     # ---------- 拖拽排序（仅待办列表） ----------
     def _on_reorder_started(self, task_id: int):
