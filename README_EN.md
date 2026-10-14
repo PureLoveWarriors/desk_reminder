@@ -4,7 +4,9 @@
 
 A lightweight Windows desktop to-do app inspired by macOS Reminders.
 
-Frameless rounded window, resize by dragging edges, always-on-top, adjustable background opacity, circle-to-complete tasks, and countdown reminders. Runs fully offline and packs into a single `.exe` — no Python required on the recipient’s machine.
+Frameless rounded window, resize by dragging edges, always-on-top, adjustable background opacity, circle-to-complete tasks, and countdown reminders. Runs fully offline. The other computer does not need Python.
+
+Hand non-developers `DeskReminder-Setup.exe`. To change the app or build it yourself, see “Run from source” and “Build” below.
 
 ## Feature overview
 
@@ -30,8 +32,19 @@ Numbered callouts match the legend on the right:
 ## Requirements
 
 - Windows 10 / 11
+- Installer or portable `.exe`: no Python needed
 - For development: Python 3.10+ (3.11 / 3.12 / 3.13 recommended)
-- For the `.exe` only: no Python needed
+
+## Install
+
+Non-developers only need the installer. They do not need the source.
+
+1. Run `DeskReminder-Setup.exe`. If SmartScreen blocks it, choose **More info → Run anyway**.
+2. Choose install for all users (default `C:\Program Files\DeskReminder\`, one UAC prompt) or for the current user only (default `%LOCALAPPDATA%\Programs\DeskReminder\`).
+3. The install folder can be changed. The desktop shortcut is on by default and can be turned off. The Start menu shortcut is always created.
+4. After install, press the Windows key and search for `Desk Reminder`. Uninstall from **Settings → Apps**.
+
+Uninstall removes the program and shortcuts only. Task data stays. The portable `DeskReminder.exe` still runs by itself if you just want one file.
 
 ## Run from source
 
@@ -43,7 +56,9 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Build an `.exe`
+## Build
+
+Both outputs stay. `build.py` only builds the portable exe. The installer wraps that exe and does not change the app.
 
 ```bash
 pip install -r requirements.txt
@@ -51,12 +66,18 @@ pip install pyinstaller
 python build.py
 ```
 
-Output: `dist/DeskReminder.exe` (single file, roughly 40–50MB), with app icon `assets/icon.ico`.
+Output: `dist/DeskReminder.exe` (single file, roughly 40–50MB), with app icon `assets/icon.ico`. That file can be copied and run on its own.
 
-Share that one file — the other person does **not** need Python.
+To also build the installer, install [Inno Setup 6](https://jrsoftware.org/isdl.php), then:
 
-> The build script overwrites `dist/DeskReminder.exe`; if that file is locked, it exits the running app and retries. If it still fails, quit the app and run the build again.  
-> First launch may hit Windows SmartScreen — choose **More info → Run anyway**.
+```bash
+python build_setup.py
+```
+
+Output: `dist/DeskReminder-Setup.exe`. This is the file to give to non-developers.
+
+> `python build.py` overwrites `dist/DeskReminder.exe`. If that file is locked, it exits the running app and retries. If it still fails, quit the app and run the build again.  
+> Neither file is code-signed. First launch may hit Windows SmartScreen — choose **More info → Run anyway**.
 
 ## How to use
 
@@ -90,8 +111,10 @@ Delete that folder to wipe data and restore defaults.
 ```
 desk_reminder/
 ├── main.py
-├── build.py
+├── build.py                 # portable exe
+├── build_setup.py           # installer around that exe
 ├── requirements.txt
+├── installer/
 ├── assets/icon.ico
 ├── docs/screenshots/
 └── app/
@@ -110,7 +133,7 @@ desk_reminder/
 
 - **UI**: PySide6 (Qt for Python)
 - **Storage**: SQLite (`sqlite3`)
-- **Packaging**: PyInstaller
+- **Packaging**: PyInstaller (portable exe) + Inno Setup (installer)
 
 ## License
 

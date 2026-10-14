@@ -4,7 +4,9 @@
 
 一个贴在 Windows 桌面上的轻量待办工具，风格参考 macOS「提醒事项」。
 
-无边框圆角窗口、可拖边框缩放、一键置顶、背景透明度可调；任务点圆圈完成，支持倒计时提醒。纯本地运行，打包成单个 `.exe` 即可分发，对方无需安装 Python。
+无边框圆角窗口、可拖边框缩放、一键置顶、背景透明度可调；任务点圆圈完成，支持倒计时提醒。纯本地运行，对方电脑不用装 Python。
+
+给非程序员直接发安装包 `DeskReminder-Setup.exe`。程序员要改程序或自己打包，看下面的「开发运行」和「打包」。
 
 ## 功能一览
 
@@ -30,8 +32,19 @@
 ## 环境要求
 
 - Windows 10 / 11
+- 安装包或便携 exe：无需 Python
 - 开发运行：Python 3.10+（推荐 3.11 / 3.12 / 3.13）
-- 仅使用 exe：无需 Python
+
+## 安装使用
+
+非程序员用安装包即可，不用看源码。
+
+1. 双击 `DeskReminder-Setup.exe`。未签名时 SmartScreen 可能拦截，选「更多信息 → 仍要运行」。
+2. 按向导选择：为所有用户（默认 `C:\Program Files\DeskReminder\`，会弹一次 UAC）或仅为我（默认 `%LOCALAPPDATA%\Programs\DeskReminder\`）。
+3. 可改安装位置。桌面快捷方式默认勾选，可以取消。开始菜单快捷方式一定会创建。
+4. 装完后按 Win 键搜 `Desk Reminder` 即可打开。卸载在「设置 → 应用」里。
+
+卸载只删除程序和快捷方式，不删除任务数据。便携 exe（`DeskReminder.exe`）仍然可以直接双击使用，适合自己拷一个文件就跑。
 
 ## 开发运行
 
@@ -47,7 +60,9 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## 打包成 exe
+## 打包
+
+两种产物都保留。`build.py` 只打便携 exe；安装包是在这个 exe 上再包一层，不改程序代码。
 
 ```bash
 pip install -r requirements.txt
@@ -55,12 +70,18 @@ pip install pyinstaller
 python build.py
 ```
 
-生成文件：`dist/DeskReminder.exe`（单文件，约 40–50MB），图标是缩小版的任务列表界面（`assets/icon.ico`）。
+生成 `dist/DeskReminder.exe`（单文件，约 40–50MB）。图标是缩小版的任务列表界面（`assets/icon.ico`）。这个文件可以单独拷走使用。
 
-把这个 exe 发给别人即可直接双击使用，**不需要**对方电脑有 Python。
+要再打安装包，本机需已安装 [Inno Setup 6](https://jrsoftware.org/isdl.php)，然后：
 
-> 打包脚本会先尝试覆盖旧的 `dist/DeskReminder.exe`；若文件被占用，会结束正在运行的实例再继续。仍失败时请先退出程序后重试。  
-> 首次运行可能被 Windows SmartScreen 拦截，选「更多信息 → 仍要运行」即可。
+```bash
+python build_setup.py
+```
+
+生成 `dist/DeskReminder-Setup.exe`。发给非程序员用这个文件。
+
+> `python build.py` 会先尝试覆盖旧的 `dist/DeskReminder.exe`；若文件被占用，会结束正在运行的实例再继续。仍失败时请先退出程序后重试。  
+> 安装包和便携 exe 都没做代码签名。首次运行可能被 Windows SmartScreen 拦截，选「更多信息 → 仍要运行」即可。
 
 ## 使用说明
 
@@ -96,8 +117,10 @@ C:\Users\<用户名>\.deskreminder\
 ```
 desk_reminder/
 ├── main.py                 # 程序入口
-├── build.py                # PyInstaller 打包脚本
+├── build.py                # PyInstaller，打出便携 exe
+├── build_setup.py          # 把便携 exe 打成安装包
 ├── requirements.txt
+├── installer/              # 安装脚本、免责声明、中文向导
 ├── assets/
 │   └── icon.ico            # 程序图标
 ├── docs/screenshots/       # README 效果图
@@ -118,7 +141,7 @@ desk_reminder/
 
 - **界面**：PySide6（Qt for Python）
 - **存储**：SQLite（标准库 `sqlite3`）
-- **打包**：PyInstaller
+- **打包**：PyInstaller（便携 exe）+ Inno Setup（安装包）
 
 ## License
 
